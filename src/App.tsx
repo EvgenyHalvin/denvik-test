@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 import {
   ReactFlowProvider,
@@ -60,10 +60,15 @@ function App() {
     setNodes((nds) => nds.concat(newNode));
   }, [nodes, setNodes]);
 
+  const dataRef = useRef<TSavedXYData>({ nodes, edges });
+
+  useEffect(() => {
+    dataRef.current = { nodes, edges };
+  }, [nodes, edges]);
+
   useEffect(() => {
     const beforeUnloadWrite = () => {
-      const data: TSavedXYData = { nodes, edges };
-      localStorage.setItem(XYFLOW_DATA_KEY, JSON.stringify(data));
+      localStorage.setItem(XYFLOW_DATA_KEY, JSON.stringify(dataRef.current));
     };
 
     window.addEventListener("beforeunload", beforeUnloadWrite);
@@ -71,10 +76,11 @@ function App() {
     return () => {
       window.removeEventListener("beforeunload", beforeUnloadWrite);
     };
-  }, [nodes, edges]);
+  }, []);
 
   useEffect(() => {
     const savedData = localStorage.getItem(XYFLOW_DATA_KEY);
+
     if (savedData) {
       const { nodes, edges } = JSON.parse(savedData) as TSavedXYData;
       setNodes(nodes);
