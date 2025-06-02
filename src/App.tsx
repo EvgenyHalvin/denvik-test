@@ -27,6 +27,8 @@ function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
+  const dataRef = useRef<TSavedXYData>({ nodes, edges });
+
   const onConnect = useCallback(
     (params) => {
       const newEdges = addEdge(params, edges);
@@ -60,27 +62,37 @@ function App() {
     setNodes((nds) => nds.concat(newNode));
   }, [nodes, setNodes]);
 
-  const dataRef = useRef<TSavedXYData>({ nodes, edges });
+  const saveData = useCallback(() => {
+    localStorage.setItem(XYFLOW_DATA_KEY, JSON.stringify(dataRef.current));
+  }, []);
 
   useEffect(() => {
     dataRef.current = { nodes, edges };
   }, [nodes, edges]);
 
   useEffect(() => {
-    const beforeUnloadWrite = () => {
-      localStorage.setItem(XYFLOW_DATA_KEY, JSON.stringify(dataRef.current));
+    const saveOnBeforeUnload = () => {
+      saveData();
     };
 
-    window.addEventListener("beforeunload", beforeUnloadWrite);
+    const saveOnVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        saveData();
+      }
+    };
+
+    window.addEventListener("beforeunload", saveOnBeforeUnload);
+    document.addEventListener("visibilitychange", saveOnVisibilityChange);
 
     return () => {
-      window.removeEventListener("beforeunload", beforeUnloadWrite);
+      window.removeEventListener("beforeunload", saveOnBeforeUnload);
+      document.removeEventListener("visibilitychange", saveOnVisibilityChange);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const savedData = localStorage.getItem(XYFLOW_DATA_KEY);
-
     if (savedData) {
       const { nodes, edges } = JSON.parse(savedData) as TSavedXYData;
       setNodes(nodes);
